@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Precios - Bodegas Pumpo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Cargar SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- CONTENEDOR APP WEB -->
+    <div class="app-container no-print">
+        <header class="app-header glass-panel">
+            <div class="header-logo">
+                <img src="imgs/logopumpo.png" alt="Bodegas Pumpo Logo" class="pumpo-logo" height="180" width="180" style="width: 180px; height: auto; object-fit: contain;">
+                <h1>Bodegas Pumpo</h1>
+            </div>
+            <h2>Gestor de Lista de Precios</h2>
+        </header>
+
+        <main class="app-main">
+            <section class="upload-section glass-panel" id="upload-section">
+                <div class="upload-area" id="upload-area">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="M16 16l-4-4-4 4"/></svg>
+                    <h3>Cargar Archivo Excel</h3>
+                    <p>Arrastra tu archivo articulosExportados.xls aquí o haz clic para buscar.</p>
+                    <input type="file" id="file-input" accept=".xls,.xlsx" hidden>
+                    <button class="btn-primary" onclick="document.getElementById('file-input').click()">Seleccionar Archivo</button>
+                </div>
+                <div id="loading-indicator" class="hidden">
+                    <div class="spinner"></div>
+                    <p>Procesando archivo...</p>
+                </div>
+                <div id="error-message" class="hidden error-text"></div>
+            </section>
+
+            <section class="data-section glass-panel hidden" id="data-section">
+                <div class="toolbar">
+                    <div class="search-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="text" id="search-input" placeholder="Buscar por descripción...">
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn-secondary excel-btn" id="export-excel-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+                            Convertir a Excel
+                        </button>
+                        <button class="btn-secondary pdf-btn" id="export-pdf-btn" onclick="window.print()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M10 18v-7h4v7"/><path d="M10 14h4"/></svg>
+                            Convertir a PDF
+                        </button>
+                        <button class="btn-icon" id="reset-btn" title="Cargar otro archivo">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th class="price-col">Precio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <span id="page-info">Mostrando 0 - 0 de 0</span>
+                    <div class="pagination-controls">
+                        <button id="btn-prev" class="btn-page" disabled>Anterior</button>
+                        <button id="btn-next" class="btn-page" disabled>Siguiente</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- CONTENEDOR PARA IMPRESIÓN (Oculto en web, visible al imprimir) -->
+    <div class="print-container only-print">
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th colspan="2" class="print-header-cell">
+                        <div class="print-header">
+                            <div class="print-logo">
+                                <img src="imgs/logopumpo.png" alt="Bodegas Pumpo Logo" class="print-pumpo-logo">
+                            </div>
+                            <div class="print-titles">
+                                <h1>BODEGAS PUMPO</h1>
+                                <h2>LISTA DE PRECIOS</h2>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+                <tr class="col-headers">
+                    <th>Descripción del Producto</th>
+                    <th class="price-col">Precio</th>
+                </tr>
+            </thead>
+            <tbody id="print-table-body">
+                <!-- Filas completas se insertan aquí por JS -->
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2" class="print-footer-cell">
+                        <div class="print-footer">
+                            <p class="warning-text">PRECIOS SUJETOS A CAMBIO SIN PREVIO AVISO</p>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
