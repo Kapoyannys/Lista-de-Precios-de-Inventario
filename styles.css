@@ -276,16 +276,34 @@ button {
 
 /* Table */
 .table-container {
-    overflow-x: auto;
+    overflow-x: hidden;
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 750px; /* Ancho máximo controlado para la interfaz */
+    margin: 0 auto;
 }
 
 .data-table {
     width: 100%;
+    table-layout: fixed; /* Modelo fijo estilo Excel */
     border-collapse: collapse;
     text-align: left;
+}
+
+/* Columna 1: Descripción (Web) */
+.data-table th:nth-child(1), 
+.data-table td:nth-child(1) {
+    width: 75%; /* 75% del espacio para el texto */
+    word-wrap: break-word; /* Ajustar texto largo en múltiples líneas */
+    padding-right: 15px; /* Espaciado de seguridad */
+}
+
+/* Columna 2: Precio (Web) */
+.data-table th:nth-child(2), 
+.data-table td:nth-child(2) {
+    width: 25%; /* 25% del espacio para el precio */
 }
 
 .data-table th, .data-table td {
@@ -378,9 +396,28 @@ button {
     }
 
     .print-table {
-        width: 100%;
+        /* ESTA ES LA LÍNEA QUE DEBES MODIFICAR PARA ACERCAR O ALEJAR EL PRECIO */
+        width: 60%; 
+        
+        table-layout: fixed;
+        margin: 0; /* Mantiene la tabla a la izquierda */
         border-collapse: collapse;
         font-size: 11pt;
+    }
+
+    /* Columna 1: Descripción (PDF) */
+    .print-table th:nth-child(1),
+    .print-table td:nth-child(1) {
+        width: 75%;
+        word-wrap: break-word;
+        padding-right: 10px;
+    }
+
+    /* Columna 2: Precio (PDF) */
+    .print-table th:nth-child(2),
+    .print-table td:nth-child(2) {
+        width: 25%;
+        text-align: right; /* Alineado a la derecha, pero como la tabla es pequeña, estará cerca */
     }
 
     /* Print Header inside thead ensures it repeats on every page */
@@ -465,6 +502,10 @@ button {
     .price-col {
         text-align: right;
         font-family: monospace;
+        /* AQUÍ PUEDES MODIFICAR EL ESTILO DEL PRECIO EN EL PDF */
+        color: #000000 !important; /* Color negro */
+        font-weight: bold; /* Negrita */
+        font-size: 13pt; /* Tamaño de letra aumentado (antes 11pt) */
     }
 }
 
