@@ -396,28 +396,29 @@ button {
     }
 
     .print-table {
-        /* ESTA ES LA LÍNEA QUE DEBES MODIFICAR PARA ACERCAR O ALEJAR EL PRECIO */
-        width: 60%; 
-        
-        table-layout: fixed;
-        margin: 0; /* Mantiene la tabla a la izquierda */
+        width: 100%; /* PDF Normal (Expandido por defecto) */
         border-collapse: collapse;
         font-size: 11pt;
     }
 
-    /* Columna 1: Descripción (PDF) */
-    .print-table th:nth-child(1),
-    .print-table td:nth-child(1) {
+    /* Reglas exclusivas para el PDF Compacto */
+    body.print-compact .print-table {
+        width: 60%; 
+        table-layout: fixed;
+        margin: 0; /* Mantiene la tabla a la izquierda */
+    }
+
+    body.print-compact .print-table th:nth-child(1),
+    body.print-compact .print-table td:nth-child(1) {
         width: 75%;
         word-wrap: break-word;
         padding-right: 10px;
     }
 
-    /* Columna 2: Precio (PDF) */
-    .print-table th:nth-child(2),
-    .print-table td:nth-child(2) {
+    body.print-compact .print-table th:nth-child(2),
+    body.print-compact .print-table td:nth-child(2) {
         width: 25%;
-        text-align: right; /* Alineado a la derecha, pero como la tabla es pequeña, estará cerca */
+        text-align: right; 
     }
 
     /* Print Header inside thead ensures it repeats on every page */

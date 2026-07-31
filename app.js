@@ -245,6 +245,26 @@ window.addEventListener('afterprint', () => {
     if (printTableBody) printTableBody.innerHTML = '';
 });
 
+// Botones de PDF
+const exportPdfFullBtn = document.getElementById('export-pdf-full-btn');
+const exportPdfCompactBtn = document.getElementById('export-pdf-compact-btn');
+
+if (exportPdfFullBtn) {
+    exportPdfFullBtn.addEventListener('click', () => {
+        document.body.classList.remove('print-compact');
+        document.body.classList.add('print-full');
+        window.print();
+    });
+}
+
+if (exportPdfCompactBtn) {
+    exportPdfCompactBtn.addEventListener('click', () => {
+        document.body.classList.remove('print-full');
+        document.body.classList.add('print-compact');
+        window.print();
+    });
+}
+
 // Exportar a Excel
 const exportExcelBtn = document.getElementById('export-excel-btn');
 if (exportExcelBtn) {
