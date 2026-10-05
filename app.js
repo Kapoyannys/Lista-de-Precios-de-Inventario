@@ -13,11 +13,38 @@ const pageInfo = document.getElementById('page-info');
 const btnPrev = document.getElementById('btn-prev');
 const btnNext = document.getElementById('btn-next');
 
+// Price Elements & Configuration
+const initialPriceSelect = document.getElementById('initial-price-select');
+const priceSelect = document.getElementById('price-select');
+const tablePriceHeader = document.getElementById('table-price-header');
+const printPriceHeader = document.getElementById('print-price-header');
+const printPriceTitle = document.getElementById('print-price-title');
+
+const PRICE_CONFIG = {
+    'H': { label: 'PRECIO 1', col: 'H', fullLabel: 'PRECIO 1 (Columna H)' },
+    'I': { label: 'PRECIO 2', col: 'I', fullLabel: 'PRECIO 2 (Columna I)' },
+    'K': { label: 'PRECIO 3', col: 'K', fullLabel: 'PRECIO 3 (Columna K)' },
+    'M': { label: 'PRECIO 4', col: 'M', fullLabel: 'PRECIO 4 (Columna M)' }
+};
+
 // State
 let globalData = [];
 let filteredData = [];
 let currentPage = 1;
+let currentPriceKey = 'H';
+let uploadedFileRef = null;
+let searchDebounceTimer = null;
 const rowsPerPage = 50;
+
+// Inicializar Contador de Visitas en Header
+const visitCounterEl = document.getElementById('visit-counter');
+if (typeof Bitacora !== 'undefined') {
+    const totalVisits = Bitacora.incrementVisits();
+    if (visitCounterEl) {
+        visitCounterEl.textContent = totalVisits.toLocaleString('es-MX');
+    }
+    Bitacora.addAction('Visita a la Aplicación', 'Ingreso del usuario a la página principal.');
+}
 
 // Format Price
 const formatPrice = (value) => {
@@ -29,6 +56,42 @@ const formatPrice = (value) => {
         currency: 'MXN'
     }).format(num);
 };
+
+// Helper to get selected price from item
+const getCurrentPrice = (item) => {
+    if (!item || !item.prices) return 0;
+    return item.prices[currentPriceKey] ?? 0;
+};
+
+// Update price headers and titles
+function updatePriceLabels() {
+    const config = PRICE_CONFIG[currentPriceKey] || { label: 'PRECIO 1' };
+    if (tablePriceHeader) tablePriceHeader.textContent = config.label;
+    if (printPriceHeader) printPriceHeader.textContent = config.label;
+    if (printPriceTitle) printPriceTitle.textContent = `LISTA DE PRECIOS - ${config.label}`;
+}
+
+// Combobox event listeners
+if (initialPriceSelect) {
+    initialPriceSelect.addEventListener('change', (e) => {
+        currentPriceKey = e.target.value;
+        if (priceSelect) priceSelect.value = currentPriceKey;
+        updatePriceLabels();
+    });
+}
+
+if (priceSelect) {
+    priceSelect.addEventListener('change', (e) => {
+        currentPriceKey = e.target.value;
+        if (initialPriceSelect) initialPriceSelect.value = currentPriceKey;
+        updatePriceLabels();
+        renderTable();
+        if (typeof Bitacora !== 'undefined') {
+            const label = PRICE_CONFIG[currentPriceKey]?.label || currentPriceKey;
+            Bitacora.addAction('Cambio de Precio', `Visualizando ${label} en la tabla.`);
+        }
+    });
+}
 
 // Handle Drag & Drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -62,6 +125,14 @@ resetBtn.addEventListener('click', () => {
     searchInput.value = '';
     globalData = [];
     filteredData = [];
+    uploadedFileRef = null;
+    currentPriceKey = 'H';
+    if (priceSelect) priceSelect.value = 'H';
+    if (initialPriceSelect) initialPriceSelect.value = 'H';
+    updatePriceLabels();
+    if (typeof Bitacora !== 'undefined') {
+        Bitacora.addAction('Reinicio', 'Se limpió la pantalla para cargar otro archivo.');
+    }
 });
 
 function showError(msg) {
@@ -72,6 +143,7 @@ function showError(msg) {
 }
 
 function handleFile(file) {
+    uploadedFileRef = file;
     if (!file.name.match(/\.(xls|xlsx)$/)) {
         showError('Por favor, selecciona un archivo Excel (.xls o .xlsx).');
         return;
@@ -106,36 +178,43 @@ function handleFile(file) {
     reader.readAsArrayBuffer(file);
 }
 
+function parseNumericPrice(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    const clean = String(val).replace(/[$,\s]/g, '').trim();
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
 function processData(rows) {
     const extracted = [];
     
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const desc = row.C;
-        let price = row.H;
         
         // Validar que la descripción no esté vacía y no sea un encabezado típico
         if (desc !== undefined && desc !== null && String(desc).trim() !== '') {
             const descStr = String(desc).trim();
-            
-            // Si el precio viene con formato erróneo (ej. 199.000000 o texto), lo convertimos a número
-            let parsedPrice = parseFloat(String(price));
-            if (isNaN(parsedPrice)) {
-                parsedPrice = 0;
-            }
+            const descLower = descStr.toLowerCase();
             
             // Evitar agregar encabezados de columna si los hay
-            if (descStr.toLowerCase() !== 'descripción' && descStr.toLowerCase() !== 'descripcion' && descStr.toLowerCase() !== 'producto') {
+            if (descLower !== 'descripción' && descLower !== 'descripcion' && descLower !== 'producto') {
                 extracted.push({
                     desc: descStr,
-                    price: parsedPrice
+                    prices: {
+                        'H': parseNumericPrice(row.H),
+                        'I': parseNumericPrice(row.I),
+                        'K': parseNumericPrice(row.K),
+                        'M': parseNumericPrice(row.M)
+                    }
                 });
             }
         }
     }
     
     if (extracted.length === 0) {
-        showError('No se encontraron datos válidos en las columnas C y H. Revisa el formato del archivo.');
+        showError('No se encontraron datos válidos en las columnas C, H, I, K y M. Revisa el formato del archivo.');
         return;
     }
 
@@ -146,6 +225,26 @@ function processData(rows) {
     filteredData = [...globalData];
     currentPage = 1;
     
+    // Obtener la selección actual del combobox o usar 'H'
+    if (initialPriceSelect && initialPriceSelect.value) {
+        currentPriceKey = initialPriceSelect.value;
+    }
+    if (priceSelect) {
+        priceSelect.value = currentPriceKey;
+    }
+    updatePriceLabels();
+
+    // Registrar en Bitácora de Archivos Subidos
+    if (typeof Bitacora !== 'undefined' && uploadedFileRef) {
+        const initialPriceLabel = PRICE_CONFIG[currentPriceKey]?.label || 'PRECIO 1';
+        Bitacora.addFileLog({
+            fileName: uploadedFileRef.name,
+            fileSize: uploadedFileRef.size,
+            productsCount: extracted.length,
+            initialPrice: initialPriceLabel
+        });
+    }
+
     loadingIndicator.classList.add('hidden');
     uploadSection.classList.add('hidden');
     dataSection.classList.remove('hidden');
@@ -167,6 +266,16 @@ searchInput.addEventListener('input', (e) => {
     
     currentPage = 1;
     renderTable();
+
+    // Registrar evento de búsqueda con debounce de 1.2s para evitar saturación
+    clearTimeout(searchDebounceTimer);
+    if (query.trim().length >= 2) {
+        searchDebounceTimer = setTimeout(() => {
+            if (typeof Bitacora !== 'undefined') {
+                Bitacora.addAction('Búsqueda', `Búsqueda de "${query.trim()}" con ${filteredData.length} resultados.`);
+            }
+        }, 1200);
+    }
 });
 
 // Pagination
@@ -208,7 +317,7 @@ function renderTable() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${item.desc}</td>
-                <td class="price-col">${formatPrice(item.price)}</td>
+                <td class="price-col"><span class="price-tag">${formatPrice(getCurrentPrice(item))}</span></td>
             `;
             tableBody.appendChild(tr);
         });
@@ -228,15 +337,22 @@ window.addEventListener('beforeprint', () => {
     if (!printTableBody) return;
     printTableBody.innerHTML = '';
     
+    updatePriceLabels();
+    
     // Para la impresión se renderizan TODOS los datos filtrados actuales de forma continua
     filteredData.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${item.desc}</td>
-            <td class="price-col">${formatPrice(item.price)}</td>
+            <td class="price-col">${formatPrice(getCurrentPrice(item))}</td>
         `;
         printTableBody.appendChild(tr);
     });
+
+    if (typeof Bitacora !== 'undefined') {
+        const priceLabel = PRICE_CONFIG[currentPriceKey]?.label || 'PRECIO 1';
+        Bitacora.addAction('Impresión PDF', `Se preparó vista para imprimir ${filteredData.length} productos (${priceLabel}).`);
+    }
 });
 
 window.addEventListener('afterprint', () => {
@@ -244,26 +360,6 @@ window.addEventListener('afterprint', () => {
     const printTableBody = document.getElementById('print-table-body');
     if (printTableBody) printTableBody.innerHTML = '';
 });
-
-// Botones de PDF
-const exportPdfFullBtn = document.getElementById('export-pdf-full-btn');
-const exportPdfCompactBtn = document.getElementById('export-pdf-compact-btn');
-
-if (exportPdfFullBtn) {
-    exportPdfFullBtn.addEventListener('click', () => {
-        document.body.classList.remove('print-compact');
-        document.body.classList.add('print-full');
-        window.print();
-    });
-}
-
-if (exportPdfCompactBtn) {
-    exportPdfCompactBtn.addEventListener('click', () => {
-        document.body.classList.remove('print-full');
-        document.body.classList.add('print-compact');
-        window.print();
-    });
-}
 
 // Exportar a Excel
 const exportExcelBtn = document.getElementById('export-excel-btn');
@@ -274,17 +370,19 @@ if (exportExcelBtn) {
             return;
         }
 
+        const priceLabel = PRICE_CONFIG[currentPriceKey]?.label || 'PRECIO 1';
+
         // Crear la estructura de arreglos (AOA) para incluir el membrete
         const aoa = [
             ["BODEGAS PUMPO"],
-            ["LISTA DE PRECIOS"],
+            [`LISTA DE PRECIOS - ${priceLabel}`],
             [], // Fila en blanco como separador
-            ["Descripción del Producto", "Precio"] // Encabezados de tabla
+            ["Descripción del Producto", priceLabel] // Encabezados de tabla
         ];
 
         // Llenar con los datos filtrados
         filteredData.forEach(item => {
-            aoa.push([item.desc, item.price]);
+            aoa.push([item.desc, getCurrentPrice(item)]);
         });
 
         // Crear hoja y libro
@@ -304,7 +402,13 @@ if (exportExcelBtn) {
             { wch: 15 }  // Ancho para Precio
         ];
 
-        // Descargar archivo
-        XLSX.writeFile(workbook, 'Lista_de_Precios_Pumpo.xlsx');
+        // Descargar archivo con nombre que identifique el precio seleccionado
+        const safeLabel = priceLabel.replace(/\s+/g, '_');
+        const exportFileName = `Lista_de_Precios_Pumpo_${safeLabel}.xlsx`;
+        XLSX.writeFile(workbook, exportFileName);
+
+        if (typeof Bitacora !== 'undefined') {
+            Bitacora.addAction('Exportación Excel', `Se descargó '${exportFileName}' con ${filteredData.length} productos.`);
+        }
     });
 }
